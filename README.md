@@ -4,14 +4,16 @@ import logging
 import telebot
 from telebot import types
 
-# 1. Loglarni sozlash (Railway'da xatolarni kuzatib borish uchun juda muhim)
+# Loglarni sozlash
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# 2. Xavfsiz Token: Tokenni GitHub'da ochiq qoldirmaslik uchun muhit o'zgaruvchisidan (Environment Variable) olamiz.
+# Tokenni muhit o'zgaruvchisidan olamiz
 TOKEN = os.getenv('BOT_TOKEN', '8787588894:AAHo5YdG3H_klIcxmjtKcOj5I-Va0e6sZyI')
 bot = telebot.TeleBot(TOKEN)
 
-# Start buyrug'i
+# Buyurtmalar tushadigan kanal (silka emas, @ bilan boshlanadigan username yoziladi)
+CHANNEL_USERNAME = '@zakaz_taxtachasi'
+
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
@@ -20,12 +22,11 @@ def send_welcome(message):
     
     bot.send_message(
         message.chat.id, 
-        "Assalomu alaykum! Buyurtma berish uchun telefon raqamingizni yuboring.\n\n"
-        "Pastdagi tugmani bosing yoki raqamingizni kiriting (Masalan: +998 90 123 45 67):", 
+        "🍦 Assalomu alaykum! Shirin va muzdek muzqaymoqlar botiga xush kelibsiz!\n\n"
+        "Buyurtma berish uchun pastdagi tugma orqali telefon raqamingizni yuboring:", 
         reply_markup=markup
     )
 
-# Raqamni qabul qilish va tekshirish
 @bot.message_handler(content_types=['contact', 'text'])
 def handle_phone(message):
     try:
@@ -34,70 +35,87 @@ def handle_phone(message):
         else:
             phone = message.text
 
-        # Barcha harf va belgilarni olib tashlab, faqat raqamlarni qoldiramiz
         clean_phone = re.sub(r'\D', '', phone)
         is_valid = False
 
-        # 9 xonali raqam yozilsa (masalan: 901234567) -> avtomat 998 qo'shamiz
         if len(clean_phone) == 9:
             clean_phone = '998' + clean_phone
             is_valid = True
-        # 12 xonali va 998 bilan boshlangan bo'lsa
         elif len(clean_phone) == 12 and clean_phone.startswith('998'):
             is_valid = True
 
         if is_valid:
-            # Raqamni chiroyli formatga keltiramiz: +998 90 123 45 67
             formatted_phone = f"+{clean_phone[:3]} {clean_phone[3:5]} {clean_phone[5:8]} {clean_phone[8:10]} {clean_phone[10:12]}"
             
+            # Muzqaymoqlar menyusini yaratamiz
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+            markup.add(
+                "🍫 Shokoladli", "🍓 Qulupnayli", 
+                "🍦 Vanilli", "🍋 Limonli", 
+                "🎂 Plombir", "❌ Bekor qilish"
+            )
+
             bot.send_message(
                 message.chat.id, 
                 f"✅ Raqamingiz qabul qilindi: {formatted_phone}\n\n"
-                "📦 Endi nima buyurtma qilmoqchi ekanligingizni matn ko'rinishida yozib yuboring:",
-                reply_markup=types.ReplyKeyboardRemove()
+                "🍨 Qanday muzqaymoq xohlaysiz? Pastdagi menyudan tanlang yoki o'zingiz yozib yuboring:",
+                reply_markup=markup
             )
-            # Botni keyingi qadamga (buyurtmani eshitishga) o'tkazamiz
-            bot.register_next_step_handler(message, process_order, formatted_phone)
+            bot.register_next_step_handler(message, process_ice_cream_order, formatted_phone)
         else:
             bot.send_message(
                 message.chat.id, 
-                "❌ Noto'g'ri format!\nIltimos, raqamni to'g'ri kiriting (Masalan: +998901234567 yoki 901234567)."
+                "❌ Noto'g'ri format! Iltimos, raqamni to'g'ri kiriting (Masalan: +998901234567)."
             )
             
     except Exception as e:
-        logging.error(f"Raqamni tekshirishda xatolik: {e}")
-        bot.send_message(message.chat.id, "Kechirasiz, tizimda xatolik yuz berdi. Qaytadan urinib ko'ring.")
+        logging.error(f"Xatolik: {e}")
+        bot.send_message(message.chat.id, "Kechirasiz, xatolik yuz berdi. Qaytadan /start ni bosing.")
 
-# Buyurtmani qabul qilish qadami
-def process_order(message, phone_number):
+def process_ice_cream_order(message, phone_number):
     try:
         order_text = message.text
         user_name = message.from_user.first_name
-        
-        # Bu yerda ma'lumotlarni bazaga saqlashingiz yoki o'zingizning shaxsiy lichkangizga (admin guruhga) yuborishingiz mumkin
-        admin_id = 'OZI_ID_RAQAMINGIZNI_YOZING' # O'zingizning Telegram ID raqamingiz
-        
-        # Foydalanuvchiga javob
+        # Foydalanuvchining tg userneymi bo'lsa uni ham olamiz
+        username = f"@{message.from_user.username}" if message.from_user.username else "Mavjud emas"
+
+        # Bekor qilish tugmasi bosilsa
+        if order_text == "❌ Bekor qilish":
+            bot.send_message(
+                message.chat.id, 
+                "Buyurtma bekor qilindi. Qayta boshlash uchun /start buyrug'ini bosing.", 
+                reply_markup=types.ReplyKeyboardRemove()
+            )
+            return
+
+        # 1. Foydalanuvchiga chiroyli tasdiq xabari yuboramiz
         bot.send_message(
             message.chat.id, 
-            f"🎉 Rahmat, {user_name}! Buyurtmangiz qabul qilindi.\n\n"
-            f"📞 Sizning raqamingiz: {phone_number}\n"
-            f"🛒 Buyurtma: {order_text}\n\n"
-            "Tez orada operatorlarimiz siz bilan bog'lanishadi."
+            f"🎉 Rahmat, {user_name}! Buyurtmangiz muvaffaqiyatli qabul qilindi.\n\n"
+            f"🛒 Siz tanladingiz: <b>{order_text}</b>\n"
+            "🛵 Kuryerimiz tez orada siz bilan bog'lanadi.",
+            reply_markup=types.ReplyKeyboardRemove(),
+            parse_mode='HTML'
         )
         
-        # Adminga xabar berish (ixtiyoriy, agar admin ID yozilgan bo'lsa ishlaydi)
-        if admin_id != 'OZI_ID_RAQAMINGIZNI_YOZING':
-            bot.send_message(
-                admin_id,
-                f"🚨 YANGI BUYURTMA!\n\nMijoz: {user_name}\nRaqam: {phone_number}\nBuyurtma: {order_text}"
-            )
+        # 2. Kanalga yuboriladigan xabar shabloni (HTML yordamida chiroyli qilingan)
+        channel_text = (
+            "🚨 <b>YANGI MUZQAYMOQ BUYURTMASI!</b> 🍦\n\n"
+            f"👤 <b>Mijoz:</b> {user_name} ({username})\n"
+            f"📞 <b>Raqam:</b> {phone_number}\n"
+            f"🍨 <b>Buyurtma:</b> {order_text}"
+        )
+        
+        # 3. Ma'lumotni @zakaz_taxtachasi kanaliga tashlash
+        bot.send_message(CHANNEL_USERNAME, channel_text, parse_mode='HTML')
             
     except Exception as e:
         logging.error(f"Buyurtmani qabul qilishda xatolik: {e}")
-        bot.send_message(message.chat.id, "Kechirasiz, buyurtmani qabul qilishda xatolik yuz berdi.")
+        bot.send_message(
+            message.chat.id, 
+            "Kechirasiz, buyurtmani kanalga yuborishda xatolik yuz berdi. Bot kanalga admin ekanligini tekshiring."
+        )
 
 if __name__ == '__main__':
-    logging.info("Bot muvaffaqiyatli ishga tushdi...")
-    # Bot internet uzilib qolsa ham to'xtab qolmasligi uchun timeout va non_stop parametrlarini beramiz
+    logging.info("Muzqaymoq boti ishga tushdi...")
     bot.infinity_polling(timeout=10, long_polling_timeout=5)
