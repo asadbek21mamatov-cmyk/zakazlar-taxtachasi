@@ -8,7 +8,7 @@ from telebot import types
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # 2. Xavfsiz Token: Tokenni GitHub'da ochiq qoldirmaslik uchun muhit o'zgaruvchisidan (Environment Variable) olamiz.
-TOKEN = os.getenv('BOT_TOKEN', 'BU_YERGA_TOKENINGIZNI_YOZING_YOKI_BO_SH_QOLDIRING')
+TOKEN = os.getenv('BOT_TOKEN', '8787588894:AAHo5YdG3H_klIcxmjtKcOj5I-Va0e6sZyI')
 bot = telebot.TeleBot(TOKEN)
 
 # Start buyrug'i
