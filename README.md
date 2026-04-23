@@ -3,7 +3,7 @@ import telebot
 from telebot import types
 
 # Bot tokeningizni kiriting
-TOKEN = 'BOT_TOKEN_SHU_YERGA_YOZING'
+TOKEN = '8787588894:AAHo5YdG3H_klIcxmjtKcOj5I-Va0e6sZyI'
 bot = telebot.TeleBot(TOKEN)
 
 # /start buyrug'i uchun javob
